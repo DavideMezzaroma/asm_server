@@ -1,2 +1,2 @@
-Unemployed behaviour
-worst possible use of free will
+Unemployed behaviour.
+Worst possible use of free will

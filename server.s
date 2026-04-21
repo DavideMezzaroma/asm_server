@@ -4,23 +4,36 @@
 .section .text
 
 _start:
+
+	#set SIGCHLD = SIG_IGN to avoid children zombie processes
+    sub rsp, 32				#reserve space for sigaction struct
+    mov QWORD PTR [rsp], 1          	#SIG_IGN macro
+    mov QWORD PTR [rsp+8], 0x40000000 	#SA_NOCLDWAIT => no zombie
+    mov rdi, 17                     	#handling SIGCHLD
+    mov rsi, rsp				#pointer to sigaction struct
+    mov rdx, 0
+    mov r10, 8
+    mov rax, 13                     	#SYS_rt_sigaction
+    syscall
+    add rsp, 32
+
 	#socket(AF_INET, SOCK_STREAM, 0)
 	mov rdi, 2	#mov rdi, AF_INET
 	mov rsi, 1	#mov rsi, SOCK_STREAM
 	mov rdx, 0	#default protocol
-   	mov rax, 41     # SYS_socket
+   	mov rax, 41     #SYS_socket
 	syscall
 	mov r12, rax	#save sockfd for later
 	#from here rax holds the sockfd
 
-    # setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, true, sizeof(int))
+    #setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, true, sizeof(int))
     push 1
     mov rdi, r12
-    mov rsi, 1      # SOL_SOCKET
+    mov rsi, 1      #SOL_SOCKET
     mov rdx, 2		#SO_REUSEADDR
     mov r10, rsp
     mov r8, 4
-    mov rax, 54     # SYS_setsockopt
+    mov rax, 54     #SYS_setsockopt
     syscall
     pop rax
 
@@ -95,6 +108,10 @@ _CHILD_BLOCK:		#child processes the connection
 _POST_BLOCK:
 	lea r11, [rsp+5]	#save r11 as the pointer to the start of the path (excluding POST )
 	mov rdi, r11
+
+	cmp BYTE PTR [r11], '/'
+	jne _FIND_POST_PATH
+	inc r11
 
 _FIND_POST_PATH:
 	cmp BYTE PTR [rdi], 0x20	#check if pointed character is space
